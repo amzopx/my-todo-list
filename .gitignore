@@ -1,0 +1,18 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# User-generated data file
+tasks.json
+
+# Virtual environment directory (we'll use this later)
+venv/
+.venv/
+
+# IDE specific files (examples, add more if needed)
+.vscode/
+.idea/
+*.swp
+*.swo
