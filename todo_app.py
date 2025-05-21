@@ -1,4 +1,6 @@
-# todo_app_v0_2.py
+# todo_app.py
+# Author: 你的名字
+# Version: 0.3 - Integrated with Git and GitHub
 
 import json # 导入 json 模块
 
