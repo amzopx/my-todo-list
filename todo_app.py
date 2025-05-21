@@ -1,6 +1,7 @@
 # todo_app.py
 # Author: 你的名字
-# Version: 0.3 - Integrated with Git and GitHub
+# Version: 0.4 - Virtual environment setup
+# Recommended to run within a Python virtual environment.
 
 import json # 导入 json 模块
 
