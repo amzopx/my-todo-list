@@ -1,14 +1,18 @@
 # todo_app.py
 # Author: 你的名字
-# Version: 0.4 - Virtual environment setup
+# Version: 0.5 - Added colorama for colored output and requirements.txt
 # Recommended to run within a Python virtual environment.
 
-import json # 导入 json 模块
+import json
+from colorama import Fore, Style, init as colorama_init # 导入 colorama 的特定成员
 
-# 定义存储任务数据的文件名，后缀改为 .json
+# --- 初始化 Colorama ---
+# autoreset=True 确保颜色设置只对当前 print 生效，之后自动重置。
+colorama_init(autoreset=True)
+
 DATA_FILE = "tasks.json"
 
-# --- 文件操作函数 (使用 JSON) ---
+# --- 文件操作函数 ---
 def load_tasks():
     """
     从 JSON 文件中加载任务。
@@ -19,24 +23,29 @@ def load_tasks():
         # 'r' 表示以只读模式打开文件
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
             # 使用 json.load() 从文件直接加载数据并解析为 Python 对象 (这里是列表)
-            tasks = json.load(f)
-            # 确保加载的数据是列表，如果不是（比如文件是空的或格式不对但json.load没报错），
-            # 也应该返回空列表或进行更细致的错误处理。
-            # json.load 在文件为空时会抛出 json.JSONDecodeError
-            if not isinstance(tasks, list):
-                print("警告：任务文件格式不正确，将使用空任务列表。")
-                return [] # 或者可以尝试修复，但这里简单处理
+            tasks_data = json.load(f)
+            # 确保加载的数据是列表，并且列表中的每个元素都是字典
+            if isinstance(tasks_data, list):
+                for item in tasks_data:
+                    if isinstance(item, dict) and 'description' in item and 'completed' in item:
+                        tasks.append(item)
+                    else:
+                        print(Fore.YELLOW + "警告：任务文件中的某个条目格式不正确，已忽略。")
+                if not tasks and tasks_data: # 如果过滤后tasks为空，但原始数据不为空，说明所有条目都有问题
+                     print(Fore.YELLOW + "警告：任务文件格式不正确，将使用空任务列表。")
+            else:
+                print(Fore.YELLOW + "警告：任务文件顶层结构不是列表，将使用空任务列表。")
+                return [] # 如果顶层不是列表，直接返回空
     except FileNotFoundError:
         # 如果文件不存在，说明还没有任务，返回空列表是正常的
         pass
     except json.JSONDecodeError:
         # 如果文件内容不是有效的 JSON (例如文件为空，或手动修改坏了)
-        print(f"警告：'{DATA_FILE}' 内容不是有效的JSON格式或为空。将使用空任务列表。")
-        # 对于空文件，可以显式返回空列表，而不是让它可能因其他逻辑而出错
-        return []
+        print(Fore.YELLOW + f"警告：'{DATA_FILE}' 内容不是有效的JSON格式或为空。将使用空任务列表。")
+        return [] # 对于空文件或无效JSON，显式返回空列表
     except Exception as e:
         # 捕获其他可能的读取错误
-        print(f"加载任务时发生错误: {e}")
+        print(Fore.RED + f"加载任务时发生未知错误: {e}")
     return tasks
 
 def save_tasks(tasks):
@@ -52,77 +61,99 @@ def save_tasks(tasks):
             json.dump(tasks, f, indent=4, ensure_ascii=False)
     except Exception as e:
         # 捕获可能的写入错误
-        print(f"保存任务时发生错误: {e}")
+        print(Fore.RED + f"保存任务时发生错误: {e}")
 
-# --- 任务管理核心函数 (与 v0.1 基本相同) ---
+
+# --- 任务管理核心函数 ---
 def add_task(tasks, description):
     """
     向任务列表中添加一个新任务。
     新任务默认为未完成状态。
     """
-    if not description.strip():
-        print("错误：任务描述不能为空！")
+    if not description.strip(): # 检查描述是否为空或只包含空白字符
+        # 使用 colorama 设置错误信息为红色
+        print(Fore.RED + "错误：任务描述不能为空！")
         return
+    # 创建一个新的任务字典
     new_task = {'description': description, 'completed': False}
+    # 将新任务添加到任务列表
     tasks.append(new_task)
-    print(f"任务 '{description}' 已添加。")
+    # 使用 colorama 设置成功信息为绿色
+    print(Fore.GREEN + f"任务 '{description}' 已添加。")
 
 def view_tasks(tasks):
     """
     显示所有任务及其状态。
     """
     if not tasks:
-        print("当前没有任务。")
+        print(Fore.YELLOW + "当前没有任务。") # 给提示信息也加点颜色
         return
 
-    print("\n--- 你的任务清单 ---")
+    print(Fore.CYAN + "\n--- 你的任务清单 ---") # 给标题加颜色
+    # enumerate 函数可以同时获取索引和元素
     for index, task in enumerate(tasks):
-        status_marker = "[x]" if task['completed'] else "[ ]"
-        print(f"{index + 1}. {status_marker} {task['description']}")
-    print("--------------------")
+        if task['completed']:
+            # 已完成任务：绿色文字，标记为 [x]
+            status_marker = Fore.GREEN + "[x]"
+            task_text = Fore.GREEN + task['description']
+        else:
+            # 未完成任务：黄色文字（或者你可以选择其他颜色），标记为 [ ]
+            status_marker = Fore.YELLOW + "[ ]"
+            task_text = Fore.YELLOW + task['description']
+        
+        # 打印任务，索引从1开始，方便用户选择
+        # Style.RESET_ALL 可以在这里确保后续的 print 不受影响，但因为我们用了 autoreset=True，所以不是严格必须
+        print(f"{index + 1}. {status_marker} {task_text}")
 
-def mark_task_completed(tasks, task_index):
+    print(Fore.CYAN + "--------------------") # 给标题加颜色
+
+def mark_task_completed(tasks, task_index_str):
     """
     将指定索引的任务标记为已完成。
-    task_index 是用户看到的从1开始的索引。
+    task_index_str 是用户看到的从1开始的索引字符串。
     """
     try:
-        actual_index = int(task_index) - 1
+        # 用户输入的索引是从1开始的，程序内部列表索引是从0开始，所以需要减1
+        actual_index = int(task_index_str) - 1
         if 0 <= actual_index < len(tasks):
             if tasks[actual_index]['completed']:
-                print(f"任务 '{tasks[actual_index]['description']}' 已经是完成状态。")
+                print(Fore.YELLOW + f"任务 '{tasks[actual_index]['description']}' 已经是完成状态。")
             else:
                 tasks[actual_index]['completed'] = True
-                print(f"任务 '{tasks[actual_index]['description']}' 已标记为完成。")
+                print(Fore.GREEN + f"任务 '{tasks[actual_index]['description']}' 已标记为完成。")
         else:
-            print("错误：无效的任务序号。")
+            print(Fore.RED + "错误：无效的任务序号。")
     except ValueError:
-        print("错误：请输入有效的任务序号（数字）。")
+        # 如果用户输入的不是数字
+        print(Fore.RED + "错误：请输入有效的任务序号（数字）。")
 
-def delete_task(tasks, task_index):
+def delete_task(tasks, task_index_str):
     """
     删除指定索引的任务。
-    task_index 是用户看到的从1开始的索引。
+    task_index_str 是用户看到的从1开始的索引字符串。
     """
     try:
-        actual_index = int(task_index) - 1
+        actual_index = int(task_index_str) - 1
         if 0 <= actual_index < len(tasks):
+            # list.pop(index) 可以移除列表中指定索引的元素
             removed_task = tasks.pop(actual_index)
-            print(f"任务 '{removed_task['description']}' 已删除。")
+            print(Fore.GREEN + f"任务 '{removed_task['description']}' 已删除。")
         else:
-            print("错误：无效的任务序号。")
+            print(Fore.RED + "错误：无效的任务序号。")
     except ValueError:
-        print("错误：请输入有效的任务序号（数字）。")
+        print(Fore.RED + "错误：请输入有效的任务序号（数字）。")
 
-# --- 主程序逻辑 (与 v0.1 基本相同) ---
+# --- 主程序逻辑 ---
 def main():
     """
     程序的主入口和用户交互循环。
     """
-    tasks = load_tasks()
+    # 注意：load_tasks, save_tasks, add_task 等函数内部也使用了 Fore，
+    # 所以 colorama_init(autoreset=True) 放在程序开始处是好的。
+    tasks = load_tasks() # 程序启动时，首先从文件加载已有任务
 
     while True:
-        print("\n请选择操作：")
+        print(Fore.CYAN + "\n请选择操作：") # 给菜单标题加颜色
         print("1. 添加任务")
         print("2. 查看任务")
         print("3. 标记任务为已完成")
@@ -134,26 +165,29 @@ def main():
         if choice == '1':
             description = input("请输入任务描述: ")
             add_task(tasks, description)
-            save_tasks(tasks)
+            save_tasks(tasks) # 每次修改后都保存任务
         elif choice == '2':
             view_tasks(tasks)
         elif choice == '3':
-            view_tasks(tasks)
-            if tasks:
+            view_tasks(tasks) # 先显示任务，方便用户选择
+            if tasks: # 只有在有任务时才要求输入序号
                 task_num_str = input("请输入要标记为完成的任务序号: ")
                 mark_task_completed(tasks, task_num_str)
-                save_tasks(tasks)
+                save_tasks(tasks) # 每次修改后都保存任务
         elif choice == '4':
-            view_tasks(tasks)
-            if tasks:
+            view_tasks(tasks) # 先显示任务，方便用户选择
+            if tasks: # 只有在有任务时才要求输入序号
                 task_num_str = input("请输入要删除的任务序号: ")
                 delete_task(tasks, task_num_str)
-                save_tasks(tasks)
+                save_tasks(tasks) # 每次修改后都保存任务
         elif choice == '5':
-            print("感谢使用，任务已保存。再见！")
-            break
+            print(Fore.GREEN + "感谢使用，任务已保存。再见！")
+            break # 退出循环，结束程序
         else:
-            print("无效的选择，请输入1到5之间的数字。")
+            print(Fore.RED + "无效的选择，请输入1到5之间的数字。")
 
+# Python 程序的标准入口点
+# 当这个 .py 文件被直接运行时，__name__ 的值是 "__main__"
+# 如果它是被其他模块导入的，__name__ 的值就是模块名
 if __name__ == "__main__":
     main()
